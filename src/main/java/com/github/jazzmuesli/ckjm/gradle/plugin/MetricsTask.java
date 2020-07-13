@@ -4,14 +4,14 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.bcel.util.ClassPath;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.tasks.TaskAction;
@@ -39,6 +39,28 @@ public class MetricsTask extends DefaultTask {
 			System.out.println("buildDir: " + project.getBuildDir());
 			ClassPath cp = new ClassPath();
 			System.out.println("classpath: " + cp);
+
+			List<String> skipConfigurations = Arrays.asList("apiElements", "implementation", "runtimeElements", "runtimeOnly", "testImplementation", "testRuntimeOnly");
+			Set<String> depElements = new LinkedHashSet<>();
+			for (Iterator<Configuration> iter = project.getConfigurations().iterator(); iter.hasNext(); ) {
+				Configuration element = iter.next();
+				if (skipConfigurations.contains(element.getName())) {
+					getLog().info("Skipping " + element);
+					continue;
+				}
+				Set<File> filesSet = element.resolve();
+				for (Iterator<File> filesIterator = filesSet.iterator(); filesIterator.hasNext(); ) {
+					File file = filesIterator.next();
+					System.out.println(file.getName());
+					depElements.add(file.getAbsolutePath());
+				}
+			}
+			getLog().info("Found " + depElements.size() + " dependencies");
+
+			for (String depFname : depElements) {
+				cp = new ClassPath(cp, depFname);
+			}
+
 			Set<String> mainOutputs = getOutput("compileJava");
 			for (String f : mainOutputs) {
 				cp = new ClassPath(cp, f);
@@ -50,7 +72,7 @@ public class MetricsTask extends DefaultTask {
 			
 	        final ClassPath fcp = cp;
 	        mainOutputs.forEach(dir -> {
-	        	System.out.println("mainDir: " + dir);
+	        	System.out.println("MainDir: " + dir);
 	        	processSourceDirectory(fcp, dir);
 	        });
 			
@@ -66,12 +88,8 @@ public class MetricsTask extends DefaultTask {
 
 	protected Set<String> getOutput(String task) {
 		Set<String> outputs = getProject().getTasks().getByName(task).getOutputs().getFiles().getFiles()
-				.stream().filter(p->p.exists()).map(x->x.getAbsolutePath()).collect(Collectors.toSet());
+				.stream().filter(File::exists).map(File::getAbsolutePath).collect(Collectors.toSet());
 		return outputs;
-	}
-
-	protected FileCollection getClasspath(Task task) {
-		return ((JavaCompile)task).getClasspath();
 	}
 
 	protected void processSourceDirectory(ClassPath cp, String dirName) {
@@ -89,9 +107,18 @@ public class MetricsTask extends DefaultTask {
 				File ckjmClassesFile = new File(dirName).toPath().resolve("ckjm-classes.txt").toFile();
 				getLog().info("Writing " + classNames.size() + " classes to " + ckjmClassesFile);
 				Files.write(ckjmClassesFile.toPath(), classNames, StandardOpenOption.CREATE);
-				
-				CSVCkjmOutputHandler outputPlain = new CSVCkjmOutputHandler(dirName + "/ckjm.csv");
-				MetricsFilter.runMetrics(cp, classNames.toArray(new String[0]), outputPlain, true);
+
+				File ckjmCpFile = new File(dirName).toPath().resolve("ckjm-cp.txt").toFile();
+				getLog().info("Writing " + cp.toString()+ " CP to " + ckjmCpFile);
+				Files.write(ckjmCpFile.toPath(), Arrays.asList(cp.toString().split(File.pathSeparator)), StandardOpenOption.CREATE);
+
+				CSVCkjmOutputHandler outputHandler = new CSVCkjmOutputHandler(dirName + "/ckjm.csv");
+				for (String className: classNames) {
+					getLog().info("Processing " + className);
+					MetricsFilter.runMetrics(cp, new String[] {className}, outputHandler, true);
+				}
+				getLog().info("Recorded " + outputHandler.getRecords() + " out of " + classNames.size() + " classes from " + dirName + " in ckjm");
+
 			}
 		} catch (Exception e) {
 			getLog().error(e.getMessage(), e);

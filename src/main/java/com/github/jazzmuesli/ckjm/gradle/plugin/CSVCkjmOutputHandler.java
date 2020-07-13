@@ -23,6 +23,7 @@ public class CSVCkjmOutputHandler implements CkjmOutputHandler {
 
 	private final CSVPrinter printer;
 	private final Map<String, Function<ClassMetrics, Number>> metricsToCMGetters;
+	private int recordCounter = 0;
 
 	public CSVCkjmOutputHandler(String fname) throws IOException {
 		this.metricsToCMGetters = createMap();
@@ -72,9 +73,13 @@ public class CSVCkjmOutputHandler implements CkjmOutputHandler {
 		try {
 			this.printer.printRecord(vals.toArray(new String[0]));
 			this.printer.flush();
+			this.recordCounter++;
 		} catch (IOException e) {
 			throw new IllegalArgumentException(e);
 		}
 	}
 
+	public int getRecords() {
+		return recordCounter;
+	}
 }
