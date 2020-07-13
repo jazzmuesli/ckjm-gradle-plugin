@@ -64,14 +64,16 @@ public class MetricsTask extends DefaultTask {
 			}
 
 			Set<String> mainOutputs = getOutput("compileJava");
+			getLog().info("mainOutputs: " + mainOutputs);
 			for (String f : mainOutputs) {
 				cp = new ClassPath(cp, f);
 			}
 			Set<String> testOutputs = getOutput("compileTestJava");
+			getLog().info("testOutputs: " + testOutputs);
 			for (String f : testOutputs) {
 				cp = new ClassPath(cp, f);
 			}
-			
+
 	        final ClassPath fcp = cp;
 	        mainOutputs.forEach(dir -> {
 	        	System.out.println("MainDir: " + dir);
