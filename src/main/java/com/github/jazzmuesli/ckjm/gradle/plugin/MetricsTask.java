@@ -42,17 +42,19 @@ public class MetricsTask extends DefaultTask {
 
 			List<String> skipConfigurations = Arrays.asList("apiElements", "implementation", "runtimeElements", "runtimeOnly", "testImplementation", "testRuntimeOnly");
 			Set<String> depElements = new LinkedHashSet<>();
-			for (Iterator<Configuration> iter = project.getConfigurations().iterator(); iter.hasNext(); ) {
-				Configuration element = iter.next();
+			for (Configuration element : project.getConfigurations()) {
 				if (skipConfigurations.contains(element.getName())) {
 					getLog().info("Skipping " + element);
 					continue;
 				}
-				Set<File> filesSet = element.resolve();
-				for (Iterator<File> filesIterator = filesSet.iterator(); filesIterator.hasNext(); ) {
-					File file = filesIterator.next();
-					System.out.println(file.getName());
-					depElements.add(file.getAbsolutePath());
+				try {
+					Set<File> filesSet = element.resolve();
+					for (File file : filesSet) {
+						System.out.println(file.getName());
+						depElements.add(file.getAbsolutePath());
+					}
+				} catch (IllegalStateException e) {
+					getLog().warn("Can't resolve " + element + " for projectDir=" + projectDir + " due to " + e.getMessage() + ", it's fine.");
 				}
 			}
 			getLog().info("Found " + depElements.size() + " dependencies");
