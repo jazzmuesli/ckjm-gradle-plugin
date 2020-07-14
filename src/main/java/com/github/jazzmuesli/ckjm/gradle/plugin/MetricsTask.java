@@ -53,7 +53,7 @@ public class MetricsTask extends DefaultTask {
 						System.out.println(file.getName());
 						depElements.add(file.getAbsolutePath());
 					}
-				} catch (IllegalStateException e) {
+				} catch (Exception e) {
 					getLog().warn("Can't resolve " + element + " for projectDir=" + projectDir + " due to " + e.getMessage() + ", it's fine.");
 				}
 			}
